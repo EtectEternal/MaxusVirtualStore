@@ -39,7 +39,23 @@
             border-radius: 8px;
             margin-bottom: 10px;
         }
-        .product-card button {
+        .quantity-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+        }
+        .quantity-controls button {
+            background: #ff4757;
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .add-to-cart {
             background-color: #ff4757;
             color: white;
             border: none;
@@ -48,8 +64,33 @@
             cursor: pointer;
             transition: all 0.3s;
         }
-        .product-card button:hover {
+        .add-to-cart:hover {
             background-color: #ff6b81;
+        }
+        .cart-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .cart-count {
+            background: white;
+            color: #ff4757;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
         }
         .modal {
             display: none;
@@ -67,17 +108,30 @@
             background: white;
             padding: 20px;
             border-radius: 10px;
-            text-align: center;
-            max-width: 300px;
+            max-width: 400px;
+            width: 90%;
         }
-        .modal-content button {
-            background-color: #ff4757;
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .total {
+            font-weight: bold;
+            margin-top: 20px;
+            text-align: right;
+        }
+        .checkout-btn {
+            background: #ff4757;
             color: white;
             border: none;
-            padding: 8px 15px;
+            padding: 10px 20px;
             border-radius: 5px;
             cursor: pointer;
-            margin-top: 15px;
+            margin-top: 20px;
+            width: 100%;
         }
     </style>
 </head>
@@ -86,30 +140,62 @@
         <h1>MAXUS</h1>
     </div>
 
+    <button class="cart-button" onclick="openCart()">
+        Корзина <span class="cart-count" id="cartCount">0</span>
+    </button>
+
     <div class="products">
         <!-- Товар 1 -->
-        <div class="product-card">
-            <img src="https://via.placeholder.com/200?text=Maxus+Classic" alt="Maxus Classic">
+        <div class="product-card" data-id="1" data-price="9.99">
+            <img src="https://example.com/maxus_classic.jpg" alt="Maxus Classic">
             <h3>Maxus Classic</h3>
-            <button onclick="showThankYou()">Купить 9.99$</button>
+            <p>9.99$</p>
+            <div class="quantity-controls">
+                <button onclick="changeQuantity(this, -1)">-</button>
+                <span class="quantity">1</span>
+                <button onclick="changeQuantity(this, 1)">+</button>
+            </div>
+            <button class="add-to-cart" onclick="addToCart(this)">В корзину</button>
         </div>
 
         <!-- Товар 2 -->
-        <div class="product-card">
-            <img src="https://via.placeholder.com/200?text=Maxus+Extra+Thin" alt="Maxus Extra Thin">
+        <div class="product-card" data-id="2" data-price="9.99">
+            <img src="https://example.com/maxus_extra_thin.jpg" alt="Maxus Extra Thin">
             <h3>Maxus Extra Thin</h3>
-            <button onclick="showThankYou()">Купить 9.99$</button>
+            <p>9.99$</p>
+            <div class="quantity-controls">
+                <button onclick="changeQuantity(this, -1)">-</button>
+                <span class="quantity">1</span>
+                <button onclick="changeQuantity(this, 1)">+</button>
+            </div>
+            <button class="add-to-cart" onclick="addToCart(this)">В корзину</button>
         </div>
 
         <!-- Товар 3 -->
-        <div class="product-card">
-            <img src="https://via.placeholder.com/200?text=Maxus+XL" alt="Maxus XL">
+        <div class="product-card" data-id="3" data-price="9.99">
+            <img src="https://example.com/maxus_xl.jpg" alt="Maxus XL">
             <h3>Maxus XL</h3>
-            <button onclick="showThankYou()">Купить 9.99$</button>
+            <p>9.99$</p>
+            <div class="quantity-controls">
+                <button onclick="changeQuantity(this, -1)">-</button>
+                <span class="quantity">1</span>
+                <button onclick="changeQuantity(this, 1)">+</button>
+            </div>
+            <button class="add-to-cart" onclick="addToCart(this)">В корзину</button>
         </div>
     </div>
 
-    <!-- Модальное окно -->
+    <!-- Модальное окно корзины -->
+    <div id="cartModal" class="modal">
+        <div class="modal-content">
+            <h2>Ваша корзина</h2>
+            <div id="cartItems"></div>
+            <div class="total" id="cartTotal">Итого: 0$</div>
+            <button class="checkout-btn" onclick="checkout()">Оформить заказ</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно подтверждения -->
     <div id="thankYouModal" class="modal">
         <div class="modal-content">
             <h2>Спасибо за покупку!</h2>
@@ -119,11 +205,76 @@
     </div>
 
     <script>
-        function showThankYou() {
-            document.getElementById('thankYouModal').style.display = 'flex';
+        let cart = [];
+
+        function changeQuantity(button, delta) {
+            const controls = button.parentElement;
+            const quantityElement = controls.querySelector('.quantity');
+            let quantity = parseInt(quantityElement.textContent);
+            quantity += delta;
+            if (quantity < 1) quantity = 1;
+            quantityElement.textContent = quantity;
         }
+
+        function addToCart(button) {
+            const productCard = button.closest('.product-card');
+            const id = productCard.dataset.id;
+            const name = productCard.querySelector('h3').textContent;
+            const price = parseFloat(productCard.dataset.price);
+            const quantity = parseInt(productCard.querySelector('.quantity').textContent);
+            const image = productCard.querySelector('img').src;
+
+            const existingItem = cart.find(item => item.id === id);
+            if (existingItem) {
+                existingItem.quantity += quantity;
+            } else {
+                cart.push({ id, name, price, quantity, image });
+            }
+
+            updateCart();
+        }
+
+        function updateCart() {
+            document.getElementById('cartCount').textContent = cart.reduce((sum, item) => sum + item.quantity, 0);
+            
+            const cartItemsElement = document.getElementById('cartItems');
+            cartItemsElement.innerHTML = '';
+            
+            let total = 0;
+            
+            cart.forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                
+                const itemElement = document.createElement('div');
+                itemElement.className = 'cart-item';
+                itemElement.innerHTML = `
+                    <div>
+                        <img src="${item.image}" alt="${item.name}" width="50">
+                        ${item.name} x${item.quantity}
+                    </div>
+                    <div>${itemTotal.toFixed(2)}$</div>
+                `;
+                cartItemsElement.appendChild(itemElement);
+            });
+            
+            document.getElementById('cartTotal').textContent = `Итого: ${total.toFixed(2)}$`;
+        }
+
+        function openCart() {
+            document.getElementById('cartModal').style.display = 'flex';
+        }
+
         function closeModal() {
+            document.getElementById('cartModal').style.display = 'none';
             document.getElementById('thankYouModal').style.display = 'none';
+        }
+
+        function checkout() {
+            document.getElementById('cartModal').style.display = 'none';
+            document.getElementById('thankYouModal').style.display = 'flex';
+            cart = [];
+            updateCart();
         }
     </script>
 </body>
